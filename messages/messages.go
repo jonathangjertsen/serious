@@ -7,19 +7,19 @@ type Unexpected struct {
 	Original Message
 }
 
-type RequestPorts struct {
+type PortsRequest struct {
 }
 
-type RequestPortsResponse struct {
+type PortsResponse struct {
 	Ports     []string
 	OpenName  *string
 	OpenIndex int
 }
 
-type RequestExit struct {
+type ExitRequest struct {
 }
 
-type RequestExitResponse struct {
+type ExitResponse struct {
 }
 
 type PortConfig struct {
@@ -29,10 +29,10 @@ type PortConfig struct {
 	Parity   string
 }
 
-type RequestReconfigurePort struct {
+type ReconfigurePortRequest struct {
 	Config *PortConfig
 }
 
-type RequestReconfigurePortResponse struct {
+type ReconfigurePortResponse struct {
 	Config *PortConfig
 }

@@ -31,21 +31,21 @@ func (ser *Serial) Run() {
 
 func (ser *Serial) handle(msg messages.Message) bool {
 	switch msg.(type) {
-	case *messages.RequestPorts:
+	case *messages.PortsRequest:
 		ser.loadPorts()
 		index, name := ser.selected()
-		*ser.channel <- messages.RequestPortsResponse{
+		*ser.channel <- messages.PortsResponse{
 			Ports:     ser.ports,
 			OpenIndex: index,
 			OpenName:  name,
 		}
 		return true
-	case *messages.RequestReconfigurePort:
-		config := msg.(*messages.RequestReconfigurePort).Config
-		*ser.channel <- messages.RequestReconfigurePortResponse{Config: config}
+	case *messages.ReconfigurePortRequest:
+		config := msg.(*messages.ReconfigurePortRequest).Config
+		*ser.channel <- messages.ReconfigurePortResponse{Config: config}
 		return true
-	case *messages.RequestExit:
-		*ser.channel <- messages.RequestExitResponse{}
+	case *messages.ExitRequest:
+		*ser.channel <- messages.ExitResponse{}
 		return false
 	default:
 		*ser.channel <- messages.Unexpected{

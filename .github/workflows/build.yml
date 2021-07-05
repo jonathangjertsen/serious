@@ -14,8 +14,7 @@ jobs:
         run: |
           go install github.com/magefile/mage
           go install .
-          mage check
-          mage buildAll
+          mage ci
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:

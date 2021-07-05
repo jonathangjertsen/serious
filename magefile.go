@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/fatih/color"
+	"github.com/magefile/mage/mg"
 	"github.com/magefile/mage/sh"
 )
 
@@ -46,6 +48,12 @@ func BuildAll() {
 	})
 }
 
+func Ci() {
+	mg.Deps(Check)
+	mg.Deps(Test)
+	mg.Deps(BuildAll)
+}
+
 func Check() error {
 	output, err := run("go", []string{"vet", "./..."}, map[string]string{})
 	if err != nil {
@@ -63,6 +71,23 @@ func Check() error {
 		return fmt.Errorf("go fmt says something:\n%s", output)
 	}
 	return nil
+}
+
+func Test() error {
+	output, err := run("go", []string{"test", "-v", "./..."}, map[string]string{})
+	for _, line := range strings.Split(output, "\n") {
+		if strings.Contains(line, "[no test files]") {
+			continue
+		}
+		if strings.HasPrefix(line, "ok") {
+			color.HiGreen(line)
+		} else if strings.Contains(line, "FAIL") {
+			color.HiRed(line)
+		} else {
+			fmt.Println(line)
+		}
+	}
+	return err
 }
 
 func Clean() error {

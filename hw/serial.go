@@ -22,8 +22,7 @@ func NewSerial(hwChannel *chan messages.Message) (*Serial, error) {
 func (ser *Serial) Run() {
 	for {
 		message := <-*ser.channel
-		keepgoing := ser.handle(message)
-		if !keepgoing {
+		if !ser.handle(message) {
 			break
 		}
 	}
@@ -64,10 +63,10 @@ func (ser *Serial) loadPorts() error {
 	return nil
 }
 
-func (ser *Serial) selected() (int, *string) {
+func (ser *Serial) selected() (int, string) {
 	if len(ser.ports) > 0 {
-		return 0, &ser.ports[0]
+		return 0, ser.ports[0]
 	} else {
-		return 0, nil
+		return 0, ""
 	}
 }

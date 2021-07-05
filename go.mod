@@ -3,6 +3,7 @@ module github.com/jonathangjertsen/serious
 go 1.16
 
 require (
+	github.com/fatih/color v1.12.0 // indirect
 	github.com/gdamore/tcell/v2 v2.3.11
 	github.com/magefile/mage v1.11.0
 	github.com/mattn/go-runewidth v0.0.13 // indirect

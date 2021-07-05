@@ -12,7 +12,7 @@ type PortsRequest struct {
 
 type PortsResponse struct {
 	Ports     []string
-	OpenName  *string
+	OpenName  string
 	OpenIndex int
 }
 

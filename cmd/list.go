@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"sync"
 
 	hw "github.com/jonathangjertsen/serious/hw"
@@ -34,16 +35,21 @@ var listCmd = &cobra.Command{
 
 func listDisplayWorker(channel *chan messages.Message, wg *sync.WaitGroup) {
 	defer wg.Done()
-
 	response := messages.SyncGetPorts(channel)
+	fmt.Print(portListString(&response))
+	messages.SyncExit(channel)
+}
+
+func portListString(response *messages.PortsResponse) string {
+	var sb strings.Builder
 	for _, port := range response.Ports {
 		selectionIndicator := ""
-		if port == *response.OpenName {
-			selectionIndicator = " [auto-selected]"
+		if port == response.OpenName {
+			selectionIndicator = " [will be auto-selected]"
 		}
-		fmt.Printf("%v%s\n", port, selectionIndicator)
+		sb.WriteString(fmt.Sprintf("%v%s\n", port, selectionIndicator))
 	}
-	messages.SyncExit(channel)
+	return sb.String()
 }
 
 func listHwWorker(channel *chan messages.Message, wg *sync.WaitGroup) {

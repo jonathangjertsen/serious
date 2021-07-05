@@ -38,7 +38,7 @@ var RootCmd = &cobra.Command{
 When run with no parameters, serious runs in interactive mode.
 `, version),
 	Run: func(cmd *cobra.Command, args []string) {
-		logfile, err := os.OpenFile("logs.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+		logfile, err := os.OpenFile("logs.txt", os.O_CREATE|os.O_RDWR, 0666)
 		if err != nil {
 			log.Fatal(err)
 		}

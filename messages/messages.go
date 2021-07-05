@@ -29,6 +29,15 @@ type PortConfig struct {
 	Parity   string
 }
 
+func DefaultPortConfig() *PortConfig {
+	return &PortConfig{
+		BaudRate: 115200,
+		DataBits: 8,
+		StopBits: 0,
+		Parity:   "None",
+	}
+}
+
 type ReconfigurePortRequest struct {
 	Config *PortConfig
 }

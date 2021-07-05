@@ -84,7 +84,7 @@ func Test() error {
 		} else if strings.Contains(line, "FAIL") {
 			color.HiRed(line)
 		} else {
-			fmt.Println(line)
+			color.New().Println(line)
 		}
 	}
 	return err

@@ -27,7 +27,7 @@ func (e *UsageError) Error() string {
 	if len(e.Allowed) > 0 {
 		allowed = fmt.Sprintf(" (allowed: %s)", strings.Join(e.Allowed, ", "))
 	}
-	return fmt.Sprintf("%s can not be %s%s", e.Opt, e.Value, allowed)
+	return fmt.Sprintf("%s can not be '%s'%s", e.Opt, e.Value, allowed)
 }
 
 var RootCmd = &cobra.Command{

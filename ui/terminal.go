@@ -2,12 +2,18 @@ package ui
 
 import (
 	"fmt"
-	"io"
 	"strconv"
 
 	"github.com/gdamore/tcell/v2"
 	messages "github.com/jonathangjertsen/serious/messages"
 	"github.com/rivo/tview"
+)
+
+const (
+	colorNone  = "[-]"
+	colorDebug = "[grey]"
+	colorError = "[red]"
+	colorInput = "[yellow:]"
 )
 
 type Terminal struct {
@@ -23,6 +29,9 @@ type Terminal struct {
 }
 
 func NewTerminal() *Terminal {
+	// Get default port config
+	cfg := messages.DefaultPortConfig()
+
 	// Init terminal
 	term := &Terminal{}
 
@@ -71,7 +80,7 @@ func NewTerminal() *Terminal {
 	baud.SetDoneFunc(func(key tcell.Key) {
 		term.handleTab(key)
 	})
-	baud.SetText("115200")
+	baud.SetText(strconv.Itoa(cfg.BaudRate))
 	baud.SetBorder(true)
 	term.widgets = append(term.widgets, baud)
 	term.baudSelect = baud
@@ -168,6 +177,7 @@ func NewTerminal() *Terminal {
 	outputBox := tview.NewTextView()
 	outputBox.SetBorder(true)
 	outputBox.SetTitle("Output")
+	outputBox.SetDynamicColors(true)
 	term.output = outputBox
 	main.AddItem(outputBox, 0, 3, false)
 
@@ -196,12 +206,12 @@ func NewTerminal() *Terminal {
 		case "\\0":
 			terminator = "\x00"
 		}
-		io.WriteString(term, fmt.Sprintf("%s%s", input.GetText(), terminator))
+		term.Write(fmt.Sprintf("%s%s", input.GetText(), terminator), colorInput)
 	})
 	input.SetChangedFunc(func(str string) {
 		_, entryStr := entry.GetCurrentOption()
 		if len(str) > 0 && entryStr == "Immediate" {
-			term.WriteLn(str)
+			term.WriteLn(str, colorInput)
 			input.SetText("")
 		}
 	})
@@ -236,12 +246,15 @@ func (term *Terminal) Run(channel *chan messages.Message) {
 	messages.SyncExit(channel)
 }
 
-func (term *Terminal) Write(str []byte) (n int, err error) {
-	return term.output.Write(str)
+func (term *Terminal) Write(str, color string) {
+	if color != "" {
+		str = color + str
+	}
+	term.output.Write([]byte(str))
 }
 
-func (term *Terminal) WriteLn(str string) {
-	io.WriteString(term, fmt.Sprintf("%s\n", str))
+func (term *Terminal) WriteLn(str, color string) {
+	term.Write(fmt.Sprintf("%s\n", str), color)
 }
 
 func (term *Terminal) findSelectedWidget() int {
@@ -320,9 +333,9 @@ func (term *Terminal) getPortConfig() (*messages.PortConfig, error) {
 
 func (term *Terminal) updatePortConfig() {
 	if config, err := term.getPortConfig(); err != nil {
-		term.WriteLn(err.Error())
+		term.WriteLn(err.Error(), colorError)
 	} else {
 		receivedConfig := messages.SyncReconfigurePort(term.channel, config).Config
-		term.WriteLn(fmt.Sprintf("Wrote port config: %+v", *receivedConfig))
+		term.WriteLn(fmt.Sprintf("Wrote port config: %+v", *receivedConfig), colorDebug)
 	}
 }

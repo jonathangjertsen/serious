@@ -6,8 +6,10 @@ import (
 )
 
 type Serial struct {
-	ports   []string
-	channel *chan messages.Message
+	ports     []string
+	openIndex int
+	openName  string
+	channel   *chan messages.Message
 }
 
 func NewSerial(hwChannel *chan messages.Message) (*Serial, error) {
@@ -32,16 +34,26 @@ func (ser *Serial) handle(msg messages.Message) bool {
 	switch msg.(type) {
 	case *messages.PortsRequest:
 		ser.loadPorts()
-		index, name := ser.selected()
 		*ser.channel <- messages.PortsResponse{
 			Ports:     ser.ports,
-			OpenIndex: index,
-			OpenName:  name,
+			OpenIndex: ser.openIndex,
+			OpenName:  ser.openName,
 		}
 		return true
 	case *messages.ReconfigurePortRequest:
 		config := msg.(*messages.ReconfigurePortRequest).Config
 		*ser.channel <- messages.ReconfigurePortResponse{Config: config}
+		return true
+	case *messages.ReconnectRequest:
+		request := msg.(*messages.ReconnectRequest)
+		for index, port := range ser.ports {
+			if port == request.Port {
+				ser.openIndex = index
+				ser.openName = port
+				break
+			}
+		}
+		*ser.channel <- messages.ReconnectResponse{Config: request.Config, Port: ser.openName}
 		return true
 	case *messages.ExitRequest:
 		*ser.channel <- messages.ExitResponse{}
@@ -61,12 +73,4 @@ func (ser *Serial) loadPorts() error {
 	}
 	ser.ports = ports
 	return nil
-}
-
-func (ser *Serial) selected() (int, string) {
-	if len(ser.ports) > 0 {
-		return 0, ser.ports[0]
-	} else {
-		return 0, ""
-	}
 }

@@ -17,3 +17,9 @@ func SyncReconfigurePort(channel *chan Message, config *PortConfig) ReconfigureP
 	response := <-*channel
 	return response.(ReconfigurePortResponse)
 }
+
+func SyncReconnectPort(channel *chan Message, port string, config *PortConfig) ReconnectResponse {
+	*channel <- &ReconnectRequest{Port: port, Config: config}
+	response := <-*channel
+	return response.(ReconnectResponse)
+}

@@ -45,3 +45,13 @@ type ReconfigurePortRequest struct {
 type ReconfigurePortResponse struct {
 	Config *PortConfig
 }
+
+type ReconnectRequest struct {
+	Config *PortConfig
+	Port   string
+}
+
+type ReconnectResponse struct {
+	Config *PortConfig
+	Port   string
+}

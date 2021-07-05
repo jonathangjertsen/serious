@@ -332,10 +332,17 @@ func (term *Terminal) getPortConfig() (*messages.PortConfig, error) {
 }
 
 func (term *Terminal) updatePortConfig() {
-	if config, err := term.getPortConfig(); err != nil {
+	config, err := term.getPortConfig()
+	if err != nil {
 		term.WriteLn(err.Error(), colorError)
-	} else {
+	}
+	_, wantedOpen := term.deviceSelect.GetCurrentOption()
+	currentOpen := messages.SyncGetPorts(term.channel).OpenName
+	if currentOpen == wantedOpen {
 		receivedConfig := messages.SyncReconfigurePort(term.channel, config).Config
-		term.WriteLn(fmt.Sprintf("Wrote port config: %+v", *receivedConfig), colorDebug)
+		term.WriteLn(fmt.Sprintf("Reconfigured port: %+v", *receivedConfig), colorDebug)
+	} else {
+		receivedConnection := messages.SyncReconnectPort(term.channel, wantedOpen, config)
+		term.WriteLn(fmt.Sprintf("Connected to port: %s, %+v", receivedConnection.Port, receivedConnection.Config), colorDebug)
 	}
 }

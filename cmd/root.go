@@ -64,6 +64,7 @@ func init() {
 }
 
 func Execute() {
+	cobra.MousetrapHelpText = ""
 	RootCmd.CompletionOptions.DisableDefaultCmd = true
 	if err := RootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

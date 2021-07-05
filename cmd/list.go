@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 
+	hw "github.com/jonathangjertsen/serious/hw"
 	"github.com/spf13/cobra"
-	"go.bug.st/serial"
 )
 
 func init() {
@@ -16,14 +16,19 @@ var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List available ports",
 	Run: func(cmd *cobra.Command, args []string) {
-		ports, err := serial.GetPortsList()
+		ser, err := hw.NewSerial()
 
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		for _, port := range ports {
-			fmt.Printf("%v\n", port)
+		selectedIndex, _ := ser.Selected()
+		for index, port := range ser.GetPorts() {
+			selectionIndicator := ""
+			if index == selectedIndex {
+				selectionIndicator = " [auto-selected]"
+			}
+			fmt.Printf("%d %v%s\n", index, port, selectionIndicator)
 		}
 	},
 }

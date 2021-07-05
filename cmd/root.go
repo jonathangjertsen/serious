@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	hw "github.com/jonathangjertsen/serious/hw"
 	ui "github.com/jonathangjertsen/serious/ui"
 	"github.com/spf13/cobra"
 )
@@ -39,12 +40,17 @@ When run with no parameters, serious runs in interactive mode.
 			log.Fatal(err)
 			os.Exit(1)
 		}
+		ser, err := hw.NewSerial()
+		if err != nil {
+			log.Fatal(err)
+			os.Exit(1)
+		}
 		uiImpl, err := GetUi(uiStr)
 		if err != nil {
 			log.Fatal(err)
 			os.Exit(1)
 		}
-		uiImpl.Run()
+		uiImpl.Run(ser)
 	},
 	Version:           version,
 	DisableAutoGenTag: true,

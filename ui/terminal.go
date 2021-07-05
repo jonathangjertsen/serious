@@ -5,13 +5,15 @@ import (
 	"io"
 
 	"github.com/gdamore/tcell/v2"
+	hw "github.com/jonathangjertsen/serious/hw"
 	"github.com/rivo/tview"
 )
 
 type Terminal struct {
-	app     *tview.Application
-	widgets []tview.Primitive
-	output  *tview.TextView
+	app          *tview.Application
+	widgets      []tview.Primitive
+	output       *tview.TextView
+	deviceSelect *tview.DropDown
 }
 
 func NewTerminal() *Terminal {
@@ -49,9 +51,8 @@ func NewTerminal() *Terminal {
 	device.SetDoneFunc(func(key tcell.Key) {
 		term.handleTab(key)
 	})
-	device.AddOption("None", nil)
-	device.SetCurrentOption(0)
 	term.widgets = append(term.widgets, device)
+	term.deviceSelect = device
 	headerConfigItemRow0.AddItem(device, 0, 2, false)
 
 	// Add baud rate config
@@ -210,7 +211,20 @@ func buttonSizeFix(button *tview.Button, height int) *tview.Flex {
 	return box
 }
 
-func (term *Terminal) Run() {
+func (term *Terminal) Run(hw hw.Hw) {
+	ports := hw.GetPorts()
+	for _, port := range ports {
+		term.deviceSelect.AddOption(port, nil)
+	}
+	if len(ports) == 0 {
+		term.deviceSelect.AddOption("None", nil)
+	}
+	index, selected := hw.Selected()
+	if selected != nil {
+		term.deviceSelect.SetCurrentOption(index)
+	} else {
+		term.deviceSelect.SetCurrentOption(0)
+	}
 	term.app.Run()
 }
 

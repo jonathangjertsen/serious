@@ -115,21 +115,30 @@ func NewTerminal() *Terminal {
 	headerConfigItemRow1.AddItem(stopBits, 0, 1, false)
 
 	// Add terminator select button
-	terminator := tview.NewDropDown()
-	terminator.SetLabel("term ")
-	terminator.SetFieldWidth(6)
-	terminator.SetDoneFunc(func(key tcell.Key) {
+	// Need to forward declare input field since this dropdown affects placeholder value
+	var input *tview.InputField
+	entry := tview.NewDropDown()
+	entry.SetLabel("entry ")
+	entry.SetFieldWidth(14)
+	entry.SetDoneFunc(func(key tcell.Key) {
 		term.handleTab(key)
+		_, entryStr := entry.GetCurrentOption()
+		if entryStr == "Immediate" {
+			input.SetPlaceholder("Text will be written immediately")
+		} else {
+			input.SetPlaceholder("")
+		}
 	})
-	terminator.SetBorder(true)
-	terminator.AddOption("None", nil)
-	terminator.AddOption("LF", nil)
-	terminator.AddOption("CR", nil)
-	terminator.AddOption("CRLF", nil)
-	terminator.AddOption("0", nil)
-	terminator.SetCurrentOption(0)
-	term.widgets = append(term.widgets, terminator)
-	headerConfigItemRow1.AddItem(terminator, 0, 1, false)
+	entry.SetBorder(true)
+	entry.AddOption("Immediate", nil)
+	entry.AddOption("No terminator", nil)
+	entry.AddOption("LF", nil)
+	entry.AddOption("CR", nil)
+	entry.AddOption("CRLF", nil)
+	entry.AddOption("\\0", nil)
+	entry.SetCurrentOption(0)
+	term.widgets = append(term.widgets, entry)
+	headerConfigItemRow1.AddItem(entry, 0, 1, false)
 
 	// Add button to update config
 	update := tview.NewButton("Update")
@@ -148,14 +157,38 @@ func NewTerminal() *Terminal {
 	main.AddItem(outputBox, 0, 3, false)
 
 	// Add input field at the bottom
-	input := tview.NewInputField()
+	input = tview.NewInputField()
 	input.SetBorder(true)
 	input.SetLabel("Input")
+	input.SetPlaceholder("Text will be written immediately")
 	input.SetDoneFunc(func(key tcell.Key) {
 		term.handleTab(key)
+		if key != tcell.KeyEnter {
+			return
+		}
+
+		_, entryStr := entry.GetCurrentOption()
+		terminator := ""
+		switch entryStr {
+		case "Immediate":
+			return
+		case "LF":
+			terminator = "\n"
+		case "CRLF":
+			terminator = "\r\n"
+		case "CR":
+			terminator = "\r"
+		case "\\0":
+			terminator = "\x00"
+		}
+		io.WriteString(term, fmt.Sprintf("%s%s", input.GetText(), terminator))
 	})
 	input.SetChangedFunc(func(str string) {
-		term.WriteLn(str)
+		_, entryStr := entry.GetCurrentOption()
+		if len(str) > 0 && entryStr == "Immediate" {
+			term.WriteLn(str)
+			input.SetText("")
+		}
 	})
 	term.widgets = append(term.widgets, input)
 	main.AddItem(input, 3, 0, false)

@@ -3,17 +3,23 @@ package ui
 import (
 	"fmt"
 	"io"
+	"strconv"
 
 	"github.com/gdamore/tcell/v2"
-	hw "github.com/jonathangjertsen/serious/hw"
+	messages "github.com/jonathangjertsen/serious/messages"
 	"github.com/rivo/tview"
 )
 
 type Terminal struct {
-	app          *tview.Application
-	widgets      []tview.Primitive
-	output       *tview.TextView
-	deviceSelect *tview.DropDown
+	channel        *chan messages.Message
+	app            *tview.Application
+	widgets        []tview.Primitive
+	output         *tview.TextView
+	baudSelect     *tview.InputField
+	deviceSelect   *tview.DropDown
+	dataBitsSelect *tview.DropDown
+	stopBitsSelect *tview.DropDown
+	paritySelect   *tview.DropDown
 }
 
 func NewTerminal() *Terminal {
@@ -65,8 +71,10 @@ func NewTerminal() *Terminal {
 	baud.SetDoneFunc(func(key tcell.Key) {
 		term.handleTab(key)
 	})
+	baud.SetText("115200")
 	baud.SetBorder(true)
 	term.widgets = append(term.widgets, baud)
+	term.baudSelect = baud
 	headerConfigItemRow0.AddItem(baud, 0, 2, false)
 
 	// Add data bits config
@@ -83,6 +91,7 @@ func NewTerminal() *Terminal {
 	dataBits.AddOption("8", nil)
 	dataBits.SetCurrentOption(3)
 	term.widgets = append(term.widgets, dataBits)
+	term.dataBitsSelect = dataBits
 	headerConfigItemRow1.AddItem(dataBits, 0, 1, false)
 
 	// Add parity config
@@ -100,6 +109,7 @@ func NewTerminal() *Terminal {
 	parity.AddOption("Always 0", nil)
 	parity.SetCurrentOption(0)
 	term.widgets = append(term.widgets, parity)
+	term.paritySelect = parity
 	headerConfigItemRow1.AddItem(parity, 0, 1, false)
 
 	// Add stop bits config
@@ -115,6 +125,7 @@ func NewTerminal() *Terminal {
 	stopBits.AddOption("2", nil)
 	stopBits.SetCurrentOption(0)
 	term.widgets = append(term.widgets, stopBits)
+	term.stopBitsSelect = stopBits
 	headerConfigItemRow1.AddItem(stopBits, 0, 1, false)
 
 	// Add terminator select button
@@ -148,6 +159,7 @@ func NewTerminal() *Terminal {
 	update.SetBlurFunc(func(key tcell.Key) {
 		term.handleTab(key)
 	})
+	update.SetSelectedFunc(term.updatePortConfig)
 
 	headerBox.AddItem(buttonSizeFix(update, 4), 0, 1, false)
 	term.widgets = append(term.widgets, update)
@@ -213,21 +225,15 @@ func buttonSizeFix(button *tview.Button, height int) *tview.Flex {
 	return box
 }
 
-func (term *Terminal) Run() {
+func (term *Terminal) Run(channel *chan messages.Message) {
+	ports := messages.SyncGetPorts(channel)
+	if len(ports.Ports) > 0 {
+		term.deviceSelect.SetOptions(ports.Ports, nil)
+		term.deviceSelect.SetCurrentOption(ports.OpenIndex)
+	}
+	term.channel = channel
 	term.app.Run()
-}
-
-func (term *Terminal) HwConnected(hw hw.Hw) {
-	ports := hw.GetPorts()
-	if len(ports) > 0 {
-		term.deviceSelect.SetOptions(ports, nil)
-	}
-	index, selected := hw.Selected()
-	if selected != nil {
-		term.deviceSelect.SetCurrentOption(index)
-	} else {
-		term.deviceSelect.SetCurrentOption(0)
-	}
+	messages.SyncExit(channel)
 }
 
 func (term *Terminal) Write(str []byte) (n int, err error) {
@@ -286,4 +292,37 @@ func (term *Terminal) handleTab(key tcell.Key) bool {
 
 func (term *Terminal) setWidget(i int) {
 	term.app.SetFocus(term.widgets[i])
+}
+
+func (term *Terminal) getPortConfig() (*messages.PortConfig, error) {
+	baudInt, err := strconv.Atoi(term.baudSelect.GetText())
+	if err != nil {
+		return nil, err
+	}
+	_, dataBitsStr := term.dataBitsSelect.GetCurrentOption()
+	dataBitsInt, err := strconv.Atoi(dataBitsStr)
+	if err != nil {
+		return nil, err
+	}
+	_, stopBitsStr := term.stopBitsSelect.GetCurrentOption()
+	stopBitsInt, err := strconv.Atoi(stopBitsStr)
+	if err != nil {
+		return nil, err
+	}
+	_, parityStr := term.paritySelect.GetCurrentOption()
+	return &messages.PortConfig{
+		BaudRate: baudInt,
+		DataBits: dataBitsInt,
+		StopBits: stopBitsInt,
+		Parity:   parityStr,
+	}, nil
+}
+
+func (term *Terminal) updatePortConfig() {
+	if config, err := term.getPortConfig(); err != nil {
+		term.WriteLn(err.Error())
+	} else {
+		receivedConfig := messages.SyncReconfigurePort(term.channel, config).Config
+		term.WriteLn(fmt.Sprintf("Wrote port config: %+v", *receivedConfig))
+	}
 }

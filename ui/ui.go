@@ -1,10 +1,9 @@
 package ui
 
 import (
-	hw "github.com/jonathangjertsen/serious/hw"
+	messages "github.com/jonathangjertsen/serious/messages"
 )
 
 type Ui interface {
-	Run()
-	HwConnected(hw hw.Hw)
+	Run(channel *chan messages.Message)
 }

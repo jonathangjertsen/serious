@@ -47,8 +47,21 @@ func BuildAll() {
 }
 
 func Check() error {
-	run("go", []string{"vet", "."}, map[string]string{})
-	run("go", []string{"lint", "."}, map[string]string{})
+	output, err := run("go", []string{"vet", "./..."}, map[string]string{})
+	if err != nil {
+		return err
+	}
+	if output != "" {
+		return fmt.Errorf("go vet says something:\n%s", output)
+	}
+
+	output, err = run("go", []string{"fmt", "./..."}, map[string]string{})
+	if err != nil {
+		return err
+	}
+	if output != "" {
+		return fmt.Errorf("go fmt says something:\n%s", output)
+	}
 	return nil
 }
 
@@ -62,7 +75,7 @@ func parallelBuild(builders [](func() error)) {
 
 	for _, builder := range builders {
 		wg.Add(1)
-		go (func(builder (func() error), wg *sync.WaitGroup) {
+		go (func(builder func() error, wg *sync.WaitGroup) {
 			defer wg.Done()
 			builder()
 		})(builder, &wg)

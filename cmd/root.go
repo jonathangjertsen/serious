@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime/debug"
 	"strings"
 	"sync"
 
 	hw "github.com/jonathangjertsen/serious/hw"
+	messages "github.com/jonathangjertsen/serious/messages"
 	ui "github.com/jonathangjertsen/serious/ui"
 	"github.com/spf13/cobra"
 )
@@ -36,6 +38,12 @@ var RootCmd = &cobra.Command{
 When run with no parameters, serious runs in interactive mode.
 `, version),
 	Run: func(cmd *cobra.Command, args []string) {
+		logfile, err := os.OpenFile("logs.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.SetOutput(logfile)
+
 		uiStr, err := cmd.Flags().GetString("ui")
 		if err != nil {
 			log.Fatal(err)
@@ -47,11 +55,13 @@ When run with no parameters, serious runs in interactive mode.
 			os.Exit(1)
 		}
 
+		channel := make(chan messages.Message)
+
 		var wg sync.WaitGroup
 		wg.Add(1)
-		go uiWorker(uiImpl, &wg)
+		go uiWorker(uiImpl, &channel, &wg)
 		wg.Add(1)
-		go hwWorker(uiImpl, &wg)
+		go hwWorker(&channel, &wg)
 
 		wg.Wait()
 	},
@@ -79,17 +89,28 @@ func GetUi(uiStr string) (ui.Ui, error) {
 	return nil, fmt.Errorf("--ui can not be '%s' (allowed values: 'terminal' [default])", uiStr)
 }
 
-func uiWorker(uiImpl ui.Ui, wg *sync.WaitGroup) {
+func uiWorker(uiImpl ui.Ui, channel *chan messages.Message, wg *sync.WaitGroup) {
+	defer logPanic()
 	defer wg.Done()
-	uiImpl.Run()
+	log.Printf("UI worker started")
+	uiImpl.Run(channel)
+	log.Printf("UI worker exited")
 }
 
-func hwWorker(uiImpl ui.Ui, wg *sync.WaitGroup) {
+func hwWorker(channel *chan messages.Message, wg *sync.WaitGroup) {
+	defer logPanic()
 	defer wg.Done()
-	hwImpl, err := hw.NewSerial()
+	hwImpl, err := hw.NewSerial(channel)
 	if err != nil {
 		log.Fatal(err)
 		os.Exit(1)
 	}
-	uiImpl.HwConnected(hwImpl)
+	hwImpl.Run()
+}
+
+func logPanic() {
+	if p := recover(); p != nil {
+		log.Printf("Panic: %+v", string(debug.Stack()))
+		panic(p)
+	}
 }

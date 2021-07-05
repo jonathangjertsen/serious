@@ -51,6 +51,8 @@ func NewTerminal() *Terminal {
 	device.SetDoneFunc(func(key tcell.Key) {
 		term.handleTab(key)
 	})
+	device.AddOption("None", nil)
+	device.SetCurrentOption(0)
 	term.widgets = append(term.widgets, device)
 	term.deviceSelect = device
 	headerConfigItemRow0.AddItem(device, 0, 2, false)
@@ -211,13 +213,14 @@ func buttonSizeFix(button *tview.Button, height int) *tview.Flex {
 	return box
 }
 
-func (term *Terminal) Run(hw hw.Hw) {
+func (term *Terminal) Run() {
+	term.app.Run()
+}
+
+func (term *Terminal) HwConnected(hw hw.Hw) {
 	ports := hw.GetPorts()
-	for _, port := range ports {
-		term.deviceSelect.AddOption(port, nil)
-	}
-	if len(ports) == 0 {
-		term.deviceSelect.AddOption("None", nil)
+	if len(ports) > 0 {
+		term.deviceSelect.SetOptions(ports, nil)
 	}
 	index, selected := hw.Selected()
 	if selected != nil {
@@ -225,7 +228,6 @@ func (term *Terminal) Run(hw hw.Hw) {
 	} else {
 		term.deviceSelect.SetCurrentOption(0)
 	}
-	term.app.Run()
 }
 
 func (term *Terminal) Write(str []byte) (n int, err error) {

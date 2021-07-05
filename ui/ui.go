@@ -5,5 +5,6 @@ import (
 )
 
 type Ui interface {
-	Run(hw.Hw)
+	Run()
+	HwConnected(hw hw.Hw)
 }

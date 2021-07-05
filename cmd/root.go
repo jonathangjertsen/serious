@@ -7,6 +7,7 @@ import (
 	"runtime/debug"
 	"strings"
 	"sync"
+	"time"
 
 	hw "github.com/jonathangjertsen/serious/hw"
 	messages "github.com/jonathangjertsen/serious/messages"
@@ -93,6 +94,7 @@ func uiWorker(uiImpl ui.Ui, channel *chan messages.Message, wg *sync.WaitGroup) 
 	defer logPanic()
 	defer wg.Done()
 	log.Printf("UI worker started")
+	uiImpl.StartReadTask(time.Millisecond * 250)
 	uiImpl.Run(channel)
 	log.Printf("UI worker exited")
 }

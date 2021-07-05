@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	messages "github.com/jonathangjertsen/serious/messages"
@@ -13,10 +14,12 @@ const (
 	colorNone  = "[-]"
 	colorDebug = "[grey]"
 	colorError = "[red]"
-	colorInput = "[yellow:]"
+	colorTx    = "[yellow:]"
+	colorRx    = "[blue:]"
 )
 
 type Terminal struct {
+	connected      bool
 	channel        *chan messages.Message
 	app            *tview.Application
 	widgets        []tview.Primitive
@@ -111,11 +114,11 @@ func NewTerminal() *Terminal {
 		term.handleTab(key)
 	})
 	parity.SetBorder(true)
-	parity.AddOption("None", nil)
-	parity.AddOption("Odd", nil)
-	parity.AddOption("Even", nil)
-	parity.AddOption("Always 1", nil)
-	parity.AddOption("Always 0", nil)
+	parity.AddOption(messages.ParityNone, nil)
+	parity.AddOption(messages.ParityOdd, nil)
+	parity.AddOption(messages.ParityEven, nil)
+	parity.AddOption(messages.ParityAlways1, nil)
+	parity.AddOption(messages.ParityAlways0, nil)
 	parity.SetCurrentOption(0)
 	term.widgets = append(term.widgets, parity)
 	term.paritySelect = parity
@@ -129,9 +132,9 @@ func NewTerminal() *Terminal {
 		term.handleTab(key)
 	})
 	stopBits.SetBorder(true)
-	stopBits.AddOption("0", nil)
-	stopBits.AddOption("1", nil)
-	stopBits.AddOption("2", nil)
+	stopBits.AddOption(messages.StopBitsOne, nil)
+	stopBits.AddOption(messages.StopBitsOnePointFive, nil)
+	stopBits.AddOption(messages.StopBitsTwo, nil)
 	stopBits.SetCurrentOption(0)
 	term.widgets = append(term.widgets, stopBits)
 	term.stopBitsSelect = stopBits
@@ -206,12 +209,12 @@ func NewTerminal() *Terminal {
 		case "\\0":
 			terminator = "\x00"
 		}
-		term.Write(fmt.Sprintf("%s%s", input.GetText(), terminator), colorInput)
+		term.Write(fmt.Sprintf("%s%s", input.GetText(), terminator), colorTx)
 	})
 	input.SetChangedFunc(func(str string) {
 		_, entryStr := entry.GetCurrentOption()
 		if len(str) > 0 && entryStr == "Immediate" {
-			term.WriteLn(str, colorInput)
+			term.WriteLn(str, colorTx)
 			input.SetText("")
 		}
 	})
@@ -244,6 +247,29 @@ func (term *Terminal) Run(channel *chan messages.Message) {
 	term.channel = channel
 	term.app.Run()
 	messages.SyncExit(channel)
+}
+
+func formatRxBuffer(buffer []byte, size int) string {
+	return string(buffer[:size])
+}
+
+func (term *Terminal) StartReadTask(interval time.Duration) {
+	go (func() {
+		for {
+			if term.connected && term.channel != nil {
+				buffer := []byte{}
+				size := 10 // Not respected at this time
+				resp := messages.SyncRead(term.channel, buffer, size)
+				if resp.Error != nil {
+					term.WriteLn(resp.Error.Error(), colorError)
+				} else {
+					term.Write(formatRxBuffer(resp.Buffer, resp.Size), colorRx)
+				}
+			}
+			term.WriteLn("Not connected...", colorDebug)
+			time.Sleep(interval)
+		}
+	})()
 }
 
 func (term *Terminal) Write(str, color string) {
@@ -318,15 +344,11 @@ func (term *Terminal) getPortConfig() (*messages.PortConfig, error) {
 		return nil, err
 	}
 	_, stopBitsStr := term.stopBitsSelect.GetCurrentOption()
-	stopBitsInt, err := strconv.Atoi(stopBitsStr)
-	if err != nil {
-		return nil, err
-	}
 	_, parityStr := term.paritySelect.GetCurrentOption()
 	return &messages.PortConfig{
 		BaudRate: baudInt,
 		DataBits: dataBitsInt,
-		StopBits: stopBitsInt,
+		StopBits: stopBitsStr,
 		Parity:   parityStr,
 	}, nil
 }
@@ -343,6 +365,12 @@ func (term *Terminal) updatePortConfig() {
 		term.WriteLn(fmt.Sprintf("Reconfigured port: %+v", *receivedConfig), colorDebug)
 	} else {
 		receivedConnection := messages.SyncReconnectPort(term.channel, wantedOpen, config)
-		term.WriteLn(fmt.Sprintf("Connected to port: %s, %+v", receivedConnection.Port, receivedConnection.Config), colorDebug)
+		if receivedConnection.Error != nil {
+			term.connected = false
+			term.WriteLn(fmt.Sprintf("Failed to connect: %+v", receivedConnection), colorError)
+		} else {
+			term.connected = true
+			term.WriteLn(fmt.Sprintf("Connected to port: %s, %+v", receivedConnection.Port, receivedConnection.Config), colorDebug)
+		}
 	}
 }
